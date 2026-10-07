@@ -1,0 +1,586 @@
+@echo off
+for /f %%E in ('echo prompt $E ^| cmd') do set "ESC=%%E"
+
+:: -----------------------------------------------------
+:: ROOT MENU
+:: First screen the user sees. Asks which environment the
+:: cmd window is currently running in to select a script
+:: to run.
+:: -----------------------------------------------------
+
+:menu
+cls
+echo ========================================================
+echo %ESC%[94m                STARTECH PC WORKAROUNDS%ESC%[0m
+echo ========================================================
+echo.
+echo  %ESC%[94m--- What cmd are you currently running? ---
+echo   1. Admin
+echo   2. WinRE
+echo   3. OOBE
+echo   0. Exit%ESC%[0m
+echo.
+echo ========================================================
+echo. 
+set /p choice="%ESC%[94mSelect an option (0-3): %ESC%[0m"
+
+:: Route to the matching sub-menu based on the user's choice
+if "%choice%"=="1" goto admin_main
+if "%choice%"=="2" goto winre_main
+if "%choice%"=="3" goto oobe_main
+if "%choice%"=="0" goto :exit
+
+:: Fallback for invalid  inputs ::
+echo %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m:  Input is invalid. Please choose a valid option listed.
+pause
+goto menu
+
+
+
+
+
+
+
+
+
+
+:: ADMIN SELECTIONS + INCLUSIONS
+
+
+:admin_main
+
+echo. 
+echo ========================================================
+echo %ESC%[94m                   ADMIN CMD SCRIPTS%ESC%[0m
+echo ========================================================
+echo. 
+echo %ESC%[94m --- What would you like to run? ---
+echo   1. Make local user
+echo   2. Make local administrator
+echo   3. Delete user
+echo   4. Force cmd preboot
+echo   0. Return%ESC%[0m
+echo.
+echo ========================================================
+echo. 
+set /p choice="Select an option (0-4): "
+
+:: Route to corresponding admin script based on user input
+if "%choice%"=="1" goto admin_makelocaluser
+if "%choice%"=="2" goto admin_makelocaladmin
+if "%choice%"=="3" goto admin_deleteuser
+if "%choice%"=="4" goto admin_cmdpreboot
+if "%choice%"=="0" goto menu
+
+:: Fallback for invalid  inputs
+echo %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: Input is invalid. Please select a valid option.
+pause
+goto admin_main
+
+
+
+
+
+:admin_makelocaluser
+
+:: -----------------------------------------------------
+:: CREATE A STANDARD LOCAL USER
+:: Prompts for a username/password and creates a plain
+:: (non-admin) local account with `net user ... /add`.
+:: -----------------------------------------------------
+
+echo.
+echo ========================================================
+echo %ESC%[94m                    MAKE LOCAL USER%ESC%[0m
+echo ========================================================
+echo.
+set /p uname="%ESC%[94mSet a username: %ESC%[94m"
+
+:: Check for empty input
+if "%uname%"=="" (
+    echo.
+    echo  %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: Username cannot be blank
+    echo. 
+    goto admin_makelocaluser
+)
+
+set /p upass="%ESC%[92mSet a passcode: %ESC%[0m"
+echo. 
+
+:: Create local user using user parameters
+:: NOTE: the password is entered/echoed in plain text
+echo Making local user...
+echo.
+net user %uname% %upass% /add
+echo %ESC%[92mUser "%uname%" created successfully!%ESC%[92m
+pause
+goto admin_main
+
+
+
+
+
+:admin_makelocaladmin
+
+:: -----------------------------------------------------
+:: CREATE A LOCAL ADMINISTRATOR
+:: Prompts for a username/password and creates a local
+:: user with `net user ... /add`, then adds that user
+:: to the administrators localgroup
+:: -----------------------------------------------------
+
+echo.
+echo ========================================================
+echo %ESC%[94m                MAKE LOCAL ADMINISTRATOR%ESC%[0m
+echo ========================================================
+echo.
+set /p uname="%ESC%[94mSet a username: %ESC%[0m"
+
+:: Check for empty input
+if "%uname%"=="" (
+    echo.
+    echo  %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: Username cannot be blank
+    echo. 
+    goto admin_makelocaladmin
+)
+
+set /p upass="Set a passcode: "
+echo. 
+
+:: Create local administrator using user parameters
+:: NOTE: the password is entered/echoed in plain text since
+echo Making local user...
+net user %uname% %upass% /add
+net localgroup administrators %uname% /add
+echo %ESC%[92mAdministrator user "%uname%" created successfully!%ESC%[92m
+pause
+goto admin_main
+
+
+
+
+
+:admin_deleteuser
+
+:: -----------------------------------------------------
+:: DELETE A LOCAL USER
+:: Prompts for a target username, confirms it exists,
+:: deletes the account via `net user ... /delete`, and
+:: optionally wipes the user data folder under C:\Users.
+:: -----------------------------------------------------
+
+echo.
+echo ========================================================
+echo %ESC%[94m                   DELETE LOCAL USER%ESC%[0m
+echo ========================================================
+echo.
+set /p target_user="%ESC%[94mEnter the username to delete (leave blank to cancel): %ESC%[0m"
+
+:: Check for empty input + return to main
+if "%target_user%"=="" goto admin_main
+
+:: Verify if the user exists on the target machine using ERRORLEVEL
+net user %target_user% >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo  %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: User "%target_user%" was not found on this system!
+    echo.
+    pause
+    goto admin_deleteuser
+)
+
+:: User verified - second checkpoint for deletion
+echo.
+echo %ESC%[92mUser "%target_user%" found!%ESC%0m
+echo %ESC%[91mWould you like to continue with deletion?%ESC%[0m
+set /p verify_checkpoint="%ESC%[94my/n: %ESC%[0m"
+
+if "%verify_checkpoint%"=="n" (
+    echo.
+    echo Deletion cancelled!
+    echo Returning to selection...
+    goto admin_deleteuser
+) 
+if "%verify_checkpoint%"=="y" (
+    echo.
+    echo Deletion confirmed.
+) else (
+    echo %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: Input not recognized. Returning to selection...
+    goto admin_deleteuser
+)
+
+:: User gave confirmation - continue with deletion
+echo Deleting user "%target_user%"...
+net user %target_user% /delete 
+
+if %errorlevel% equ 0 (
+    echo %ESC%[92m"%target_user%" was deleted successfully!%ESC%[0m
+) else (
+    echo  %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: Failed to delete user "%target_user%". Ensure CMD is running as Administrator.
+    goto admin_deleteuser
+)
+pause
+echo. 
+
+:: User deletion successful, prompt for %target_user% data deletion
+echo Would you like to delete all user files from hard drive? 
+set /p delete_verification="%ESC%[94my/n: %ESC%[0m"
+
+if "%delete_verification%"=="y" (
+    echo Deleting \Users\%target_user%...
+    rmdir /s /q "C:\Users\%target_user%"
+    echo %ESC%[92m%target_user% data deleted sucessfully!%ESC[0m%
+    echo returning to Admin Menu...
+)
+
+if "%delete_verification%"=="n" (
+    echo. 
+    echo User files not deleted from system.
+    pause
+    goto admin_main
+)
+goto admin_main
+
+
+
+:admin_cmdpreboot
+
+:: -----------------------------------------------------
+:: RIG SYSTEM TO PREBOOT ADMIN CMD
+:: Confirms selection, confirms that CmdLine points to 
+:: "cmd.exe", and sets DWORD to 2, making boot run 
+:: whatever CmdLine points to instead of Windows. 
+:: -----------------------------------------------------
+
+echo.
+echo ========================================================
+echo %ESC%[94m                  FORCE CMD PREBOOT%ESC%[0m
+echo ========================================================
+echo.
+echo Cmd will be run before Windows boot.
+echo Once done, type "exit" to restart computer and move  
+echo into Windows.
+set /p user_verification="%ESC%[94mWould you like to continue? y/n: %ESC%[0m"
+
+:: Sorts + executes user input
+if "%user_verification%"=="y" (
+    echo Selection confirmed.
+) else if "%user_verification%"=="n" (
+    echo Cancelled.
+    echo returning to Admin Menu...
+    goto admin_main
+) else (
+    echo %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: Input not recognized. Returning to Admin Menu...
+    goto admin_main
+)
+
+:: Selection confirmed, runs preboot rig
+echo Forcing cmd preboot...
+reg add "HKLM\SYSTEM\Setup" /v CmdLine /t REG_SZ /d "cmd.exe" /f
+reg add "HKLM\SYSTEM\Setup" /v SetupType /t REG_DWORD /d 2 /f
+echo %ESC%[92mcmd preboot successful!%ESC%[0m
+pause
+goto admin_main
+
+
+
+
+
+
+
+
+
+
+:: WINRE SELECTIONS + INCLUSIONS
+
+
+:winre_main
+
+:: -----------------------------------------------------
+:: WINRE CMD SCRIPTS
+:: Main menu to run scripts while in Windows Recovery. 
+:: -----------------------------------------------------
+
+echo.
+echo ========================================================
+echo %ESC%[94m                   WinRE CMD SCRIPTS%ESC%[0m
+echo ========================================================
+echo.
+echo %ESC%[94m-- What would you like to run? --
+echo   1. Delete user
+echo   2. Force cmd preboot
+echo   3. 
+echo   0. Return%ESC%[0m
+echo ========================================================
+echo. 
+set /p choice="%ESC%[94mSelect an option (0-3): %ESC%[0m"
+
+if "%choice%"=="1" goto winre_deleteuser
+if "%choice%"=="2" goto winre_cmdpreboot
+if "%choice%"=="3" (
+    echo %ESC%[91mThere is no script for this selection. %ESC%[0m
+    echo Please choose another option.
+    echo.      
+    goto winre_main
+)
+if "%choice%"=="0" goto menu
+
+
+:winre_deleteuser
+setlocal enabledelayedexpansion
+
+:: -----------------------------------------------------
+:: DELETE A LOCAL USER (OFFLINE, VIA WINRE)
+:: Loads offline SAM + SOFTWARE hives, removes target
+:: user's SAM entry by RID, and removes the
+:: corresponding ProfileList entry.
+:: -----------------------------------------------------
+echo.
+echo ========================================================
+echo %ESC%[94m              DELETE LOCAL USER (WINRE)%ESC%[0m
+echo ========================================================
+echo.
+
+:: Automatically finds main windows drive
+call :find_os_drive
+if not defined offline_drive (
+    echo %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: Could not auto-detect the Windows drive.
+    set /p offline_drive="%ESC%[94mEnter main OS drive manually (e.g. D): %ESC%[0m"
+) else (
+    echo %ESC%[94mDetected Windows install on %ESC%[94m%offline_drive%:%ESC%[0m
+
+:: Asks user which profile to delete
+)/p target_user="%ESC%[94mEnter the username to delete (leave blank to cancel): %ESC%[0m"
+if "%target_user%"=="" (
+    endlocal
+    goto winre_main
+)
+
+:: Load the offline hives
+echo.
+echo Loading offline SAM and SOFTWARE hives...
+reg load HKLM\OfflineSAM "%offline_drive%:\Windows\System32\config\SAM" 2>nul
+if errorlevel 1 (
+    echo  %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: Could not load SAM hive. Check the drive letter and try again.
+    pause
+    endlocal
+    goto winre_main
+)
+reg load HKLM\OfflineSoftware "%offline_drive%:\Windows\System32\config\SOFTWARE" 2>nul
+if errorlevel 1 (
+    echo  %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: Could not load SOFTWARE hive.
+    reg unload HKLM\OfflineSAM >nul 2>&1
+    pause
+    endlocal
+    goto winre_main
+)
+
+:: Confirm the user exists and store corresponding RID
+set "RID_HEX="
+for /f "tokens=2" %%A in ('reg query "HKLM\OfflineSAM\SAM\Domains\Account\Users\Names\%target_user%" 2^>nul ^| findstr /i /c:"%target_user%"') do set "RID_HEX=%%A"
+
+if "!RID_HEX!"=="" (
+    echo.
+    echo  %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: User "%target_user%" was not found in the offline SAM.
+    reg unload HKLM\OfflineSAM >nul 2>&1
+    reg unload HKLM\OfflineSoftware >nul 2>&1
+    pause
+    endlocal
+    goto winre_deleteuser
+)
+
+:: Strip "0x" and uppercase the hex digits
+set "RID_HEX=!RID_HEX:0x=!"
+for %%A in (a=A b=B c=C d=D e=E f=F) do (
+    for /f "tokens=1,2 delims==" %%b in ("%%A") do set "RID_HEX=!RID_HEX:%%b=%%c!"
+)
+
+:: Zero-pad to 8 digits (SAM RID subkeys are 8-digit hex names)
+set "RID_PADDED=00000000!RID_HEX!"
+set "RID_PADDED=!RID_PADDED:~-8!"
+
+echo.
+echo %ESC%[92mUser "%ESC%[94m%target_user%%ESC%[92m" found - RID %ESC%[94m0x!RID_HEX!%ESC%[92m (key: %ESC%[94m!RID_PADDED!%ESC%[92m)%ESC%[0m
+echo Deleting SAM account entry...
+reg delete "HKLM\OfflineSAM\SAM\Domains\Account\Users\Names\%target_user%" /f >nul
+reg delete "HKLM\OfflineSAM\SAM\Domains\Account\Users\!RID_PADDED!" /f >nul
+
+:: Find and remove the matching ProfileList entry
+echo Searching for matching profile entry...
+set "MATCHED_SID_KEY="
+for /f "tokens=*" %%K in ('reg query "HKLM\OfflineSoftware\Microsoft\Windows NT\CurrentVersion\ProfileList" 2^>nul ^| findstr /i "S-1-5-21-"') do (
+    for /f "tokens=2,*" %%P in ('reg query "%%K" /v ProfileImagePath 2^>nul ^| findstr /i "ProfileImagePath"') do (
+        echo %%Q | findstr /i /e /c:"\%target_user%" >nul
+        if not errorlevel 1 set "MATCHED_SID_KEY=%%K"
+    )
+)
+
+if defined MATCHED_SID_KEY (
+    echo Removing ProfileList entry !MATCHED_SID_KEY!...
+    reg delete "!MATCHED_SID_KEY!" /f >nul
+) else (
+    echo %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: No matching ProfileList entry found
+)
+
+:: Unload hives before touching the filesystem
+reg unload HKLM\OfflineSAM >nul 2>&1
+reg unload HKLM\OfflineSoftware >nul 2>&1
+
+echo.
+echo %ESC%[92mUser "%ESC%[94m%target_user%%ESC%[92m" removed from the offline account database.
+echo.
+echo %ESC%[91mWould you like to delete the user's profile folder?%ESC%[0m
+set /p delete_verification="%ESC%[94my/n: %ESC%[0m"
+if /i "%delete_verification%"=="y" (
+    if exist "%offline_drive%:\Users\%target_user%" (
+        rmdir /s /q "%offline_drive%:\Users\%target_user%"
+        echo Profile folder deleted.
+    ) else (
+        echo %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: No profile folder found at %ESC%[94m%offline_drive%:\Users\%target_user%%ESC%[0m
+    )
+)
+
+pause
+endlocal
+goto winre_main
+
+
+
+:winre_cmdpreboot
+:: -----------------------------------------------------
+:: Confirms continuation. Loads offline system,
+:: confirms that CmdLine points to "cmd.exe", and sets
+:: DWORD to 2.
+:: -----------------------------------------------------
+
+echo. 
+echo ========================================================
+echo %ESC%[94m                  FORCE CMD PREBOOT%ESC%[0m
+echo ========================================================
+echo. 
+echo Running this program will force Windows to run
+echo Command Prompt as SYSTEM instead of moving into 
+echo your Operating System. Would you like to continue?
+set /p yesno="%ESC%[94my/n: %ESC%[0m
+
+if "%yesno%"=="y" (
+    echo Confirmed. Running cmd preboot...
+    echo. 
+)
+if "%yesno%"=="n" (
+    echo %ESC%[91mCancelled%ESC%[0m. Returning to WinRE Main...
+    goto winre_main
+)
+
+:: Autodetect main drive ltr
+call :find_os_drive
+if not defined offline_drive (
+    echo %ESC%[91m[!]%ESC%[0m ERROR %ESC%[91m[!]%ESC%[0m: Could not auto-detect the Windows drive.
+    set /p offline_drive="%ESC%[94mEnter main OS drive manually (e.g. D): %ESC%[0m"
+) else (
+    echo %ESC%[94mDetected Windows install on %ESC%[94m%offline_drive%:%ESC%[0m
+
+
+:: Cmd preboot script runner
+reg load HKLM\OfflineSystem %offline_drive%:\Windows\System32\config\SYSTEM
+reg add "HKLM\OfflineSystem\Setup" /v CmdLine /t REG_SZ "cmd.exe" /f
+reg add "HKLM\OfflineSystem\Setup" /v SetupType /t REG_DWORD /d 2 /f
+echo %ESC%[92m Cmd preboot completed successfully!%ESC%[0m
+pause
+echo Returning to WinRE Main...
+goto winre_main
+
+:: OOBE SELECTIONS + INCLUSIONS 
+
+
+:oobe_main
+
+echo. 
+echo ========================================================
+echo %ESC%[94m                   OOBE CMD SCRIPTS%ESC%[0m
+echo ========================================================
+echo. 
+echo    %ESC%[94m--- What would you like to run? ---
+echo    1. Bypass network requirement
+echo    2. Immediately create user
+echo    0. Return%ESC%[0m
+echo ========================================================
+echo.
+set /p choice="%ESC%[94mSelect an option: %ESC%[0m"
+
+if "%choice%"=="1" goto oobe_bypassnro
+if "%choice%"=="2" goto oobe_createuser
+if "%choice%"=="0" goto menu
+
+:oobe_bypassnro
+:: -----------------------------------------------------
+:: Creates option to bypass network requirement using
+:: oobe\bypassnro
+:: -----------------------------------------------------
+
+echo.
+echo ========================================================
+echo %ESC%[94m               BYPASS NETWORK REQUIREMENT%ESC%[0m
+echo ========================================================
+echo.
+oobe\bypassnro
+echo %ESC%[92mBypass completed successfully!%ESC%[0m
+echo Option to bypass network connection created
+echo Select "%ESC%[94mI don't have internet%ESC%[0m" option in network screen
+echo.
+pause
+goto oobe_main
+
+
+
+:oobe_createuser
+:: -----------------------------------------------------
+:: Immediately allows user to create a local user using
+:: window popup. User must input username + password
+:: then click "next" to create user.
+:: -----------------------------------------------------
+
+echo.
+echo ========================================================
+echo %ESC%[94m                IMMEDIATELY CREATE USER%ESC%[0m
+echo ========================================================
+echo.
+echo This command will open a new window that will give you
+echo the option to input a username and password for a local
+echo user. Username is required, but leave password blank to 
+echo make a user with no password. This must be done manually.
+echo %ESC%[94mWould you like to continue?%ESC%[0m
+set /p choice="%ESC%[94my/n: %ESC%[0m"
+
+if "%choice%"=="y" (
+    echo %ESC%[92mConfirmed. Opening new window...
+)
+if "%choice%"=="n" (
+    echo %ESC%[91mCancelled%ESC%[0m. Returning to OOBE Main...
+    goto oobe_main
+)
+
+:: Opens create user window
+start ms-cxh://localonly
+echo %ESC%[92mWindow opened successfully!%ESC%[0m
+echo Continue on other window to complete action.
+pause
+goto main
+
+
+:: UNIVERSAL SELECTIONS + INCLUSIONS 
+
+
+:exit
+
+echo %ESC%[91mExiting program...%ESC%[0m
+echo.
+echo ========================================================
+echo %ESC%[91m              StarTechPCWorkarounds.bat%ESC%[0m
+echo ========================================================
+echo                    Code written by 
+echo              ~~~ %ESC%[94mNicolas Hazembuller%ESC%[0m ~~~
+echo.
+pause
+
+
