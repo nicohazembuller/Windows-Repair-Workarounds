@@ -10,8 +10,8 @@ for /f %%E in ('echo prompt $E ^| cmd') do set "ESC=%%E"
 
 :menu
 cls
-echo ========================================================
-echo %ESC%[94m                STARTECH PC WORKAROUNDS%ESC%[0m
+echo %ESC%[0m========================================================
+echo %ESC%[94m             WINDOWS WORKAROUNDS%ESC%[0m
 echo ========================================================
 echo.
 echo  %ESC%[94m--- What cmd are you currently running? ---
