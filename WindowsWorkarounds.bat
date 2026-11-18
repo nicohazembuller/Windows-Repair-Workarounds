@@ -37,13 +37,6 @@ goto menu
 
 
 
-
-
-
-
-
-
-
 :: ADMIN SELECTIONS + INCLUSIONS
 
 
@@ -281,12 +274,6 @@ reg add "HKLM\SYSTEM\Setup" /v SetupType /t REG_DWORD /d 2 /f
 echo %ESC%[92mcmd preboot successful!%ESC%[0m
 pause
 goto admin_main
-
-
-
-
-
-
 
 
 
@@ -576,7 +563,7 @@ goto main
 echo %ESC%[91mExiting program...%ESC%[0m
 echo.
 echo ========================================================
-echo %ESC%[91m              StarTechPCWorkarounds.bat%ESC%[0m
+echo %ESC%[91m              WindowsWorkarounds.bat%ESC%[0m
 echo ========================================================
 echo                    Code written by 
 echo              ~~~ %ESC%[94mNicolas Hazembuller%ESC%[0m ~~~
